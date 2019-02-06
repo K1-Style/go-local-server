@@ -1,28 +1,44 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/urfave/cli"
 )
 
-// 指定したディレクトリに対してローカルでHttpサーバーを立ち上げるスクリプト
+// 指定したディレクトリに対してローカルでhttpサーバーを立ち上げるスクリプト
 //
 // 例) go run main.go -d /path/to/dir -p 8080
 // ↑http://localhost:8080 にアクセスすると /path/to/dir 内の内容を確認できる
 func main() {
 	// プログラム実行したカレントディレクトリをデフォルトとする
 	currentDir, _ := os.Getwd()
-	var (
-		// サーバー立てる対象のディレクトリ
-		dir = flag.String("d", currentDir, "directory for launch server")
-		// ポート番号
-		port = flag.String("p", "9090", "port number")
-	)
 
-	flag.Parse()
+	app := cli.NewApp()
+	app.Name = "go-local-server"
 
-	http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir(*dir))))
-	log.Fatal(http.ListenAndServe(":"+*port, nil))
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "dir, d",
+			Value: currentDir,
+			Usage: "directory for launch server",
+		},
+		cli.StringFlag{
+			Name:  "port, p",
+			Value: "9090",
+			Usage: "port number",
+		},
+	}
+
+	app.Action = func(c *cli.Context) error {
+		http.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir(c.String("dir")))))
+		return http.ListenAndServe(":"+c.String("port"), nil)
+	}
+
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
